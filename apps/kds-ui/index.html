@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>kitchenOS - KDS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: #16213e;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #0f3460;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e94560;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #e94560;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.connected {
+            background: #4ade80;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            padding: 24px;
+        }
+        
+        .order-card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #4ade80;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.4);
+        }
+        
+        .order-card.cooking {
+            border-left-color: #fbbf24;
+            animation: cooking-pulse 1.5s infinite;
+        }
+        
+        .order-card.late {
+            border-left-color: #ef4444;
+            animation: late-pulse 0.8s infinite;
+        }
+        
+        @keyframes cooking-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
+        }
+        
+        @keyframes late-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+        }
+        
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .order-id {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e94560;
+        }
+        
+        .order-time {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+        
+        .order-source {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #0f3460;
+            border-radius: 4px;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        
+        .order-items {
+            list-style: none;
+            margin-bottom: 16px;
+        }
+        
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #0f3460;
+        }
+        
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        
+        .item-name {
+            font-weight: 500;
+        }
+        
+        .item-qty {
+            background: #e94560;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .order-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-cooking {
+            background: #fbbf24;
+            color: #1a1a2e;
+        }
+        
+        .btn-cooking:hover {
+            background: #f59e0b;
+        }
+        
+        .btn-ready {
+            background: #4ade80;
+            color: #1a1a2e;
+        }
+        
+        .btn-ready:hover {
+            background: #22c55e;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+        
+        .empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #94a3b8;
+        }
+        
+        .test-order {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 16px 24px;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4);
+            transition: transform 0.2s;
+        }
+        
+        .test-order:hover {
+            transform: scale(1.05);
+        }
+        
+        .alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(239, 68, 68, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+        
+        .alert-content {
+            background: #1a1a2e;
+            padding: 32px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .alert-content h2 {
+            color: #ef4444;
+            margin-bottom: 16px;
+        }
+        
+        .alert-dismiss {
+            margin-top: 20px;
+            padding: 12px 32px;
+            background: #ef4444;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @media (max-width: 600px) {
+            .orders-grid {
+                grid-template-columns: 1fr;
+                padding: 16px;
+            }
+            
+            .test-order {
+                bottom: 16px;
+                right: 16px;
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">kitchenOS</div>
+        <div class="connection-status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </header>
+    
+    <main class="orders-grid" id="ordersGrid">
+        <div class="empty-state">
+            <h2>No Active Orders</h2>
+            <p>Waiting for orders from Swiggy/Zomato...</p>
+        </div>
+    </main>
+    
+    <button class="test-order" id="testOrderBtn">+ Test Order</button>
+    
+    <script>
+        // Configuration - auto-detect backend
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3001'
+            : `http://${window.location.hostname}:3001`;
+        
+        const INGESTION_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000'
+            : `http://${window.location.hostname}:3000`;
+        
+        const WS_URL = API_BASE.replace('http', 'ws') + '/ws';
+        
+        let orders = [];
+        let ws = null;
+        
+        // DOM Elements
+        const ordersGrid = document.getElementById('ordersGrid');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const testOrderBtn = document.getElementById('testOrderBtn');
+        
+        // Initialize WebSocket
+        function connectWebSocket() {
+            ws = new WebSocket(WS_URL);
+            
+            ws.onopen = () => {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+                console.log('WebSocket connected');
+            };
+            
+            ws.onclose = () => {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+                console.log('WebSocket disconnected');
+                // Reconnect after 3 seconds
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Received:', data);
+                
+                if (data.type === 'order.update') {
+                    // Refresh orders
+                    fetchOrders();
+                } else if (data.type === 'order.created') {
+                    // New order - play sound and refresh
+                    playSound();
+                    fetchOrders();
+                } else if (data.type === 'inventory.low') {
+                    showLowStockAlert(data.payload);
+                }
+            };
+        }
+        
+        // Fetch orders from KDS service
+        async function fetchOrders() {
+            try {
+                const response = await fetch(`${API_BASE}/orders`);
+                orders = await response.json();
+                renderOrders();
+            } catch (error) {
+                console.error('Error fetching orders:', error);
+            }
+        }
+        
+        // Render orders
+        function renderOrders() {
+            if (orders.length === 0) {
+                ordersGrid.innerHTML = `
+                    <div class="empty-state">
+                        <h2>No Active Orders</h2>
+                        <p>Waiting for orders from Swiggy/Zomato...</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            ordersGrid.innerHTML = orders.map(order => {
+                const statusClass = order.status === 'cooking' ? 'cooking' : '';
+                const timeAgo = getTimeAgo(new Date(order.created_at));
+                const items = order.items || [];
+                
+                return `
+                    <div class="order-card ${statusClass}" data-id="${order.id}">
+                        <div class="order-header">
+                            <span class="order-id">#${order.id.slice(0, 8)}</span>
+                            <span class="order-time">${timeAgo}</span>
+                        </div>
+                        <div class="order-source">${order.aggregator}</div>
+                        <ul class="order-items">
+                            ${items.map(item => `
+                                <li class="order-item">
+                                    <span class="item-name">${item.dishName || 'Unknown'}</span>
+                                    <span class="item-qty">×${item.quantity}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <div class="order-actions">
+                            ${order.status === 'pending' ? `
+                                <button class="btn btn-cooking" onclick="markCooking('${order.id}')">
+                                    Start Cooking
+                                </button>
+                            ` : order.status === 'cooking' ? `
+                                <button class="btn btn-ready" onclick="markReady('${order.id}')">
+                                    Mark Ready
+                                </button>
+                            ` : `
+                                <button class="btn" disabled>Completed</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Mark order as cooking
+        async function markCooking(orderId) {
+            try {
+                await fetch(`${API_BASE}/orders/${orderId}/cooking`, { method: 'POST' });
+                fetchOrders();
+            } catch (error) {
+                console.error('Error marking cooking:', error);
+            }
+        }
+        
+        // Mark order as ready
+        async function markReady(orderId) {
+            try {
+                await fetch(`${API_BASE}/orders/${orderId}/ready`, { method: 'POST' });
+                fetchOrders();
+            } catch (error) {
+                console.error('Error marking ready:', error);
+            }
+        }
+        
+        // Create test order
+        async function createTestOrder() {
+            try {
+                const response = await fetch(`${INGESTION_BASE}/test/order`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ aggregator: 'swiggy' })
+                });
+                const data = await response.json();
+                console.log('Test order created:', data);
+                fetchOrders();
+            } catch (error) {
+                console.error('Error creating test order:', error);
+                alert('Failed to create test order. Make sure ingestion service is running.');
+            }
+        }
+        
+        // Play notification sound
+        function playSound() {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleVMnI4rq75FoLw5In+vvo2ItAA9tqebVk0YWAFFQc6B9IA4CUlN0q3QjCwJSV3OreB4JAmJjgKZzHQUAaGd/qXEVAwBmZX+ocxUDAGVmf6hyFQMAZGV/+6kvIy9tf5h0HQUAYWJ5lXIZAwBhYnmVchUDAGFieZVyFQMA');
+            audio.play().catch(() => {}); // Ignore autoplay errors
+        }
+        
+        // Show low stock alert
+        function showLowStockAlert(payload) {
+            const overlay = document.createElement('div');
+            overlay.className = 'alert-overlay';
+            overlay.innerHTML = `
+                <div class="alert-content">
+                    <h2>⚠️ Low Stock Alert</h2>
+                    <p><strong>${payload.ingredientName}</strong></p>
+                    <p>Current: ${payload.currentStock} units</p>
+                    <p>Threshold: ${payload.alertThreshold} units</p>
+                    <button class="alert-dismiss" onclick="this.parentElement.parentElement.remove()">
+                        Dismiss
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+        
+        // Helper: Get time ago
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            return `${Math.floor(seconds / 3600)}h ago`;
+        }
+        
+        // Event listeners
+        testOrderBtn.addEventListener('click', createTestOrder);
+        
+        // Start
+        connectWebSocket();
+        fetchOrders();
+        // Refresh every 30 seconds as fallback
+        setInterval(fetchOrders, 30000);
+    </script>
+</body>
+</html>

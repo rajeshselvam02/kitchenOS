@@ -1,80 +1,191 @@
-# kitchenOS
+# kitchenOS 🍳
 
-Digital Operating System for Cloud Kitchens
+**Next-generation cloud kitchen operating system**
+
+Platform-independent prototype for cloud kitchens. Runs on Termux (Android), Linux, macOS, and Windows.
+
+## Quick Start (Termux)
+
+### 1. Install Prerequisites
+
+```bash
+# On Termux
+pkg update
+pkg install nodejs python3 postgresql redis -y
+
+# Start services
+service postgresql start
+redis-server --daemonize yes
+```
+
+### 2. Clone & Setup
+
+```bash
+git clone https://github.com/rajeshselvam02/kitchenOS.git
+cd kitchenOS
+```
+
+### 3. Run Everything
+
+```bash
+# One-command startup
+./start-termux.sh
+```
+
+This will:
+- ✅ Install npm dependencies
+- ✅ Run database migrations
+- ✅ Start all 3 microservices
+- ✅ Show you the URLs
+
+### 4. Open KDS UI
+
+```bash
+# In a new terminal
+./serve-ui.sh
+```
+
+Then open: http://localhost:8080
+
+### 5. Test the System
+
+```bash
+./test-termux.sh
+```
+
+Or manually:
+
+```bash
+# Create test order
+curl -X POST http://localhost:3000/test/order
+
+# View orders
+curl http://localhost:3001/orders | jq
+
+# Mark cooking
+curl -X POST http://localhost:3001/orders/<ORDER_ID>/cooking
+
+# Mark ready (triggers inventory deduction)
+curl -X POST http://localhost:3001/orders/<ORDER_ID>/ready
+
+# Check transactions
+curl http://localhost:3002/transactions | jq
+```
 
 ## Architecture
 
 ```
-services/
-├── ingestion/       # Order ingestion from aggregators (Swiggy, Zomato)
-├── kds/            # Kitchen Display System (WebSocket-based)
-├── inventory/      # Real-time inventory tracking + BOM deduction
-├── bom/            # Recipe/Bill of Materials management
-└── analytics/      # P&L calculation + demand forecasting
-
-packages/
-├── shared/         # Shared utilities, configs
-├── types/          # TypeScript type definitions
-└── db/             # Database schemas, migrations, seed data
+┌─────────────────┐
+│   Swiggy/Zomato │
+└────────┬────────┘
+         │ Webhook
+         ▼
+┌─────────────────┐     ┌──────────────┐
+│ INGESTION (3000)│────▶│ Redis Stream │
+└─────────────────┘     └──────┬───────┘
+                               │
+              ┌────────────────┼────────────────┐
+              ▼                ▼                ▼
+      ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+      │ KDS (3001)  │  │INVENTORY    │  │ Analytics   │
+      │             │  │  (3002)     │  │  (future)   │
+      └─────────────┘  └─────────────┘  └─────────────┘
+              │                │
+              ▼                ▼
+      ┌─────────────┐  ┌─────────────┐
+      │ KDS UI      │  │ PostgreSQL  │
+      │ (WebSocket) │  │ + Timescale │
+      └─────────────┘  └─────────────┘
 ```
 
-## Tech Stack
+## Services
 
-- **Backend**: Node.js + TypeScript
-- **Database**: PostgreSQL + TimescaleDB
-- **Event Bus**: Redis Streams
-- **Real-time**: WebSockets (Socket.io)
-- **API**: Fastify (high-performance alternative to Express)
+| Service | Port | Description |
+|---------|------|-------------|
+| Ingestion | 3000 | Receives orders from Swiggy/Zomato webhooks |
+| KDS | 3001 | Kitchen Display System with WebSocket |
+| Inventory | 3002 | BOM-based deduction, low stock alerts |
 
-## Quick Start
+## Features
 
-```bash
-# Install dependencies
-npm install
+### ✅ Completed (v0.1.0)
+- [x] Order ingestion (webhook + test endpoint)
+- [x] KDS with real-time WebSocket updates
+- [x] BOM-based inventory deduction
+- [x] Low stock alerts
+- [x] Audit logging
+- [x] Visual KDS UI (responsive, dark theme)
+- [x] Termux support (no Docker needed)
 
-# Run all services in dev mode
-npm run dev
+### 🚧 In Progress
+- [ ] Admin dashboard
+- [ ] Real Swiggy/Zomato integration
+- [ ] Demand forecasting
+
+### 📋 Planned
+- [ ] Multi-location support
+- [ ] Mobile app for chefs
+- [ ] P&L dashboard
+
+## Project Structure
+
 ```
-
-## MVP Focus
-
-**The KDS-to-Inventory Loop**
-
-1. Order arrives → Ingestion Service normalizes & emits event
-2. KDS Service displays order → Chef marks "Ready"
-3. Inventory Service deducts ingredients based on BOM
-4. Audit log created (GST compliance)
-5. Alert owner on discrepancies
-
-## Development
-
-Each service is independent and can be run standalone:
-
-```bash
-cd services/inventory
-npm run dev
-```
-
-## Database Setup
-
-```bash
-# Create database
-createdb kitchenos_dev
-
-# Run migrations
-npm run migrate
-
-# Seed data
-npm run seed
+kitchenOS/
+├── apps/
+│   └── kds-ui/           # Frontend (vanilla JS, no build)
+├── packages/
+│   ├── types/            # Shared TypeScript types
+│   └── db/               # Database schema & migrations
+├── services/
+│   ├── ingestion/        # Order intake
+│   ├── kds/              # Kitchen Display
+│   └── inventory/        # Stock management
+├── start-termux.sh       # One-command startup
+├── stop-termux.sh        # Stop all services
+├── test-termux.sh        # Integration test
+└── serve-ui.sh           # Serve KDS UI
 ```
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and configure:
+Create `.env` from `.env.example`:
 
-```
-DATABASE_URL=postgresql://localhost/kitchenos_dev
+```env
+DATABASE_URL=postgresql://postgres:@localhost/kitchenos_dev
 REDIS_URL=redis://localhost:6379
-SWIGGY_WEBHOOK_SECRET=your-secret
-ZOMATO_WEBHOOK_SECRET=your-secret
+NODE_ENV=development
+INGESTION_PORT=3000
+KDS_PORT=3001
+INVENTORY_PORT=3002
 ```
+
+## Troubleshooting
+
+### Port already in use
+```bash
+# Find and kill process
+lsof -ti:3000 | xargs kill -9
+```
+
+### PostgreSQL not starting (Termux)
+```bash
+# Initialize if needed
+initdb -D $PREFIX/var/lib/postgresql
+service postgresql start
+```
+
+### Redis not starting
+```bash
+# Start manually
+redis-server --daemonize yes
+# Test
+redis-cli ping  # Should return PONG
+```
+
+## License
+
+MIT
+
+---
+
+Built with ❤️ for cloud kitchens
